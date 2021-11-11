@@ -6,6 +6,8 @@ version_no=$2
 spark_sql_path=$3
 label=$4
 the_date_1=${the_date:0:7}
+the_date_2=$(date -d last-month +%Y-%m)
+
 
 sql_part="
 INSERT overwrite TABLE profile${label}.app_fdm_20211030 partition(the_date,version_no)
@@ -48,8 +50,6 @@ fi
 
 msg2="定时调度【${version_no}版本规则对最近15天的APP行为按月汇总】跑数成功~！！！"
 curl -X POST -H 'Content-Type: application/json' -d '{"accessToken": "faed9fc12a3a47bae96b94a068e2066642d0a366b752565d80465fe2a7203b9a","content": "'${msg2}'", "mobiles":"'${notice_ids}'" }' "http://10.10.15.52:8888/conch/notice/ding"
-
-
 
 exit 0
 
