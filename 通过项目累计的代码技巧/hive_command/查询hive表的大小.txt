@@ -1,0 +1,26 @@
+1.查看普通表的容量
+$ hadoop fs -ls  /user/hive/warehouse/table_name | awk -F ' ' '{print $5}'|awk '{a+=$1}END {print a}'
+2.查看表元数据存储路径是，推荐方法3，信息比较清晰。
+desc formatted table_name
+
+hdfs://dzcluster/user/hive/warehouse/profile.db/dwd_app_20211030
+
+3.看一个hive表各个分区的内存大小
+3.1看表test.students的一级分区下的内存大小
+hadoop fs -du -h /user/hive/warehouse/profile.db/dwd_app_20211030
+
+3.2看表test.students的二级分区下的内存大小（假设一级分区为data_date）
+hadoop fs -du -h /user/hive/warehouse/profile.db/dwd_app_20211030/the_date=2021-01-01*/
+
+
+
+hadoop fs -du -h /user/hive/warehouse/profile.db/dwd_app_ah_20210530/the_date=2021-01-01*/
+
+hadoop fs -du -h /user/hive/warehouse/profile.db/dwd_app_sj_20210530/the_date=2021-01-01*/
+
+hadoop fs -du -h /user/hive/warehouse/profile.db/dwd_app_ys_20210530/the_date=2021-01-01*/
+
+hadoop fs -du -h /user/hive/warehouse/profile.db/dwd_app_zs_20210530/the_date=2021-01-01*/
+
+4.看一个hive表的更新时间
+进去hive之后 dfs -ls -d -h /user/hive/warehouse/test.db/students/*;

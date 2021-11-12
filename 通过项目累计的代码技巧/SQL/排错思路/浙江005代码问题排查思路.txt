@@ -1,0 +1,24 @@
+一、浙江005代码问题排查思路
+1.首先对比代码修改的地方，从逻辑判断代码的正确性
+
+https://www.diffchecker.com/diff
+
+浙数005_改
+
+浙数005_原
+
+2.如果不能解决问题，需要进行控制变量，将两份代码和输入调整为一致，对比输入，逐步拆解代码，缩小范围，确定产生问题的几行代码
+
+3.发现问题的根本原因
+
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where the_date='2021-06-10' and version_no='008' and suspected_app_name ='伴伴';
+
+3
+
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where the_date='2021-06-10' and version_no='008' and suspected_app_name !='伴伴';
+
+19
+
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where the_date='2021-06-10' and version_no='008';
+
+76

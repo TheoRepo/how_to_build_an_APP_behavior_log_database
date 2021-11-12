@@ -1,0 +1,159 @@
+select count(*) from 
+(
+select 
+row_key,
+mobile_id,
+app_name,
+app_type,
+case when length(behavior) > 0 then behavior end as behavior,
+start_time,
+case when length(virtual_id) > 0 then virtual_id end as virtual_id,
+the_date,version_no
+from
+(
+    select 
+    row_key,
+    mobile_id,
+    app_name,
+    app_type,
+    max(behavior) behavior,
+    start_time,
+    max(virtual_id) virtual_id,
+    the_date,version_no
+    from
+    (
+        select /*+ mapjoin(b)*/
+        a.row_key,
+        a.mobile_id,
+        b.mapping_app_name as app_name,
+        b.app_type,
+        b.behavior,
+        a.event_time as start_time,
+        case when b.virtual_id regexp '已开通花呗' then regexp_extract(a.msg,b.virtual_id,2)
+             when b.virtual_id is not null then regexp_extract(a.msg,b.virtual_id,1)
+        else null
+        end as virtual_id,
+        the_date,
+        version_no
+        from
+            (
+                select
+                row_key,
+                mobile_id,
+                event_time,
+                app_name,
+                suspected_app_name,
+                msg,
+                the_date
+                from preprocess.ds_txt_final_sample where the_date = '2021-01-01' 
+            )a
+        inner join
+            (
+                select
+                app_name,
+                suspected_app_name,
+                posi_regexp,
+                nege_regexp,
+                mapping_app_name,
+                behavior,
+                virtual_id,
+                app_type,
+                version_no
+                from profile.dws_app_regexp_20211030_mid_8 
+                where the_date='2021-06-10' and version_no='008'
+            )b on trim(a.app_name) = trim(b.app_name)
+        where if(b.posi_regexp is not null,a.msg regexp b.posi_regexp,1=1) 
+        and if(b.nege_regexp is not null,a.msg not regexp b.nege_regexp,1=1)
+        
+) d
+distribute by rand()
+) e
+)
+
+137216
+
+
+select count(*) from 
+(
+select /*+ mapjoin(b)*/
+        a.row_key,
+        a.mobile_id,
+        b.mapping_app_name as app_name,
+        b.app_type,
+        b.behavior,
+        a.event_time as start_time,
+        case when b.virtual_id regexp '已开通花呗' then regexp_extract(a.msg,b.virtual_id,2)
+             when b.virtual_id is not null then regexp_extract(a.msg,b.virtual_id,1)
+        else null
+        end as virtual_id,
+        the_date,
+        version_no
+        from
+            (
+                select
+                row_key,
+                mobile_id,
+                event_time,
+                app_name,
+                suspected_app_name,
+                msg,
+                the_date
+                from preprocess.ds_txt_final_sample where the_date = '2021-01-01' and suspected_app_name!='伴伴'
+            )a
+        inner join
+            (
+                select
+                app_name,
+                suspected_app_name,
+                posi_regexp,
+                nege_regexp,
+                mapping_app_name,
+                behavior,
+                virtual_id,
+                app_type,
+                version_no
+                from profile.dws_app_regexp_20211030_mid_8 
+                where the_date='2021-06-10' and version_no='008' and suspected_app_name !='伴伴'
+            )b on trim(a.app_name) = trim(b.app_name)
+        where if(b.posi_regexp is not null,a.msg regexp b.posi_regexp,1=1) 
+        and if(b.nege_regexp is not null,a.msg not regexp b.nege_regexp,1=1)
+) e
+
+
+142939
+
+
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where the_date='2021-06-10' and version_no='008' and suspected_app_name !='伴伴';
+19
+
+show partitions profile.dws_app_regexp_20211030_mid_8;
+
+version_no=001/the_date=2021-05-25
+version_no=002/the_date=2021-05-20
+version_no=003/the_date=2021-07-09
+version_no=004/the_date=2021-06-08
+version_no=005/the_date=2021-05-12
+version_no=006/the_date=2021-07-19
+version_no=007/the_date=2021-06-16
+version_no=008/the_date=2021-06-10
+version_no=009/the_date=2021-09-30
+
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='001' and the_date='2021-05-25';
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='002' and the_date='2021-05-20';
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='003' and the_date='2021-07-09';
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='004' and the_date='2021-06-08';
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='005' and the_date='2021-05-12';
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='006' and the_date='2021-07-19';
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='007' and the_date='2021-06-16';
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='008' and the_date='2021-06-10';
+select count(*) from profile.dws_app_regexp_20211030_mid_8 where version_no='009' and the_date='2021-09-30';
+
+144
+12819
+2874
+4482
+3343
+7514
+71
+76
+86
