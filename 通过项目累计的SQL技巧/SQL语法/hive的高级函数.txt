@@ -1,0 +1,605 @@
+1.数据排序
+1.1开窗函数row_number() over(partition by ** order by **)
+
+row_number() over(partition by app_name order by app_name) as rn
+将所有数据按照app_name字段分区，每个分区内按照app_name字段排序，然后标注1，2，3
+
+row_number() over(partition by 1 order by app_name desc) AS app_id
+建一个临时的列 全为1 然后统计所有数据
+
+2. 获取时间
+2.1 时间函数
+一、unix_timestamp函数用法——用字符串生成时间戳
+1、unix_timestamp() 得到当前时间戳
+2、如果参数date满足yyyy-MM-dd HH:mm:ss形式，则可以直接unix_timestamp(string date) 得到参数对应的时间戳
+3、如果参数date不满足yyyy-MM-dd HH:mm:ss形式，则我们需要指定date的形式，在进行转换
+unix_timestamp(‘2009-03-20’, ‘yyyy-MM-dd’)=1237532400
+
+二、from_unixtime函数用法——将时间戳转化成字符串
+语法：from_unixtime(t1,’yyyy-MM-dd HH:mm:ss’)
+其中t1是10位的时间戳值，即1970-1-1至今的秒，而13位的所谓毫秒的是不可以的。
+对于13位时间戳，需要截取，然后转换成bigint类型，因为from_unixtime类第一个参数只接受bigint类型。例如：
+select from_unixtime(cast(substring(tistmp,1,10) as bigint),’yyyy-MM-dd HH’) 
+
+
+2.2当日时间
+unix_timestamp() 方法可得到当前时间的时间戳。
+
+hive> select unix_timestamp();
+OK
+1631846289
+
+
+
+hive> select from_unixtime(unix_timestamp(),'yyyy-MM-dd HH:mm:ss');
+OK
+2021-09-17 10:46:22
+
+
+
+2.3 时间戳比大小
+YY-MM-DD HH-MM-SS 格式时间 和HH-MM-SS时间做大小对比时，HH-MM-SS 的日期会默认是 1900-00-00的最小日期 需要注意
+
+例子
+
+23:59:59  < 1992-01-01 00:00:00
+
+2.4 字符串2014-11-10 和 20141110相互转化的办法：
+1.from_unixtime && unix_timestamp
+
+select from_unixtime(unix_timestamp('2014-11-10','yyyy-mm-dd'),'yyyymmdd') from default.dual;
+-- 20141110
+select from_unixtime(unix_timestamp('20141110','yyyymmdd'),'yyyy-mm-dd') from default.dual;
+
+-- 2014-11-10
+
+
+2.substr + concat
+select concat(substr('2014-11-10',1,4),substr('2014-11-10',6,2),substr('2014-11-10',9,2)) from default.dual;
+-- 20141110
+select concat(substr('20141110',1,4),'-',substr('20141110',5,2),'-',substr('20141110',7,2)) from default.dual;
+
+-- 2014-11-10
+
+3.唯一值
+3.1 distinct单列
+
+select distinct(a) from tableA;
+
+3.2 distinct多列
+
+select distinct a,b,c from tableA;
+
+4. 嵌套函数语法顺序
+SELECT column_name(s)
+FROM table_name
+WHERE condition
+GROUP BY column_name(s)
+ORDER BY column_name(s);
+
+5. mapjoin小表连大表
+select  
+
+/*+mapjoin(a)*/
+
+*
+
+from a
+
+inner join b
+
+on a.app_name = b.app_name
+
+a是小表，b是大表
+
+map端连接，按道理来说不算是Hive连接的一种，它是对Hive SQL的优化，Hive是将SQL转化为MpaReduce job，因此Map端连接对应的就是Hadoop Join连接中的Map端连接，将小表加载到内存中，以提高hive sql的执行速度。 可以通过下面两种方式使用Hive SQL map 端join连接： 1. 使用/*+ MAPJOIN*/标记：
+
+6. hive表连接
+如下所示：让我们看看不同JOIN的不同
+
+
+
+1.INNER JOIN
+
+SELECT * FROM TableA INNER JOIN TableB ON TableA.name = TableB.name
+
+
+
+2.FULL [OUTER] JOIN
+
+(1)SELECT * FROM TableA FULL OUTER JOIN TableB ON TableA.name = TableB.name
+
+
+
+3.LEFT [OUTER] JOIN
+
+SELECT * FROM TableA LEFT OUTER JOIN TableB ON TableA.name = TableB.name
+
+
+
+4.RIGHT [OUTER] JOIN
+
+RIGHT OUTERJOIN 是后面的表为基础，与LEFT OUTER JOIN用法类似。这里不介绍了。
+
+
+5.UNION 与 UNION ALL
+
+UNION 操作符用于合并两个或多个 SELECT 语句的结果集。
+请注意，UNION 内部的 SELECT 语句必须拥有相同数量的列。列也必须拥有相似的数据类型。同时，每条 SELECT 语句中的列的顺序必须相同。UNION 只选取记录，而UNION ALL会列出所有记录。
+
+
+
+
+6. 分组拼接同一列的字符串/分组多行拼接为一行
+
+
+
+
+拼接几列字符串不难，concat 就可以实现，concat(col1,col2,col3)  就会将第一列，第二列，第三列字符拼接起来，此处就不做示范了。
+
+但如果要拼接一列中的字符呢？搜索了下，发现了一个很好用的函数 concat_ws，
+
+select id, concat_ws('_',collect_set(col1)) as concatcol1 from table group by id
+
+还有第二种函数 groupconcat：
+
+select id,group_concat(distinct(col1),'_') as concatcol1 from table group by id
+
+
+
+7.求差集
+hive sql求差集的方法
+
+1、什么是差集
+
+set1 - set2，即去掉set1中存在于set2中的数据。
+
+2、hive中计算差集的方法，基本是使用左外链接。
+
+直接上代码
+
+select * from table1 t1 left outer join table2 t2 on t1.id = t2.id where t2.id = null;
+
+
+8.求合集
+select * from
+
+(
+
+select a1,a2 from temp_uniontest_ta where dt = '2014-10-13'
+
+union all
+
+select a1,a2 from temp_uniontest_tb where dt = '2014-10-13'
+
+)tmp;
+
+
+
+9.判断出现在A表，没有出现在B表
+10.1 in
+select * from
+(select app_name from ga.interface_app_strategy_20211030 where app_strategy regexp '' group by app_name) a
+where a.app_name not in (select app_name from profile.dws_app_index_20211030)
+
+10.2 left join
+select a.app_name from (select app_name from ga.interface_app_strategy_20211030 where app_strategy regexp '') a left join (select app_name from profile.dws_app_index_20211030) b where b.app_name is null
+
+
+
+10.计算结果保留两位小数百分数
+round(column_name,2) 四舍五入截取(这种方法慎用，有时候结果不是你想要的)
+
+regexp_extract(column_name,'([0-9]*.[0-9][0-9])',1) 正则匹配截取，不做四舍五入，只是单纯的当作字符串截取
+
+cast(column_name as decimal(10,2)) cast函数截取（推荐使用）
+
+注意：
+
+decimal前面一个10表示10位数字，后面一个2表示2位小数
+
+example：
+
+hive> select cast(cast('522222' AS BIGINT)/cast('12' AS BIGINT)* 100 as decimal(10,3)) as percent;
+
+OK
+
+4351850.000
+
+
+
+11.字符串切割
+字符串长度函数：length
+
+
+
+Java代码
+语法: length(string A)
+返回值: int
+说明：返回字符串A的长度
+举例：
+hive> select length(‘abcedfg’) from dual;
+7
+
+字符串反转函数：reverse
+
+
+
+Java代码
+语法: reverse(string A)
+返回值: string
+说明：返回字符串A的反转结果
+举例：
+hive> select reverse(‘abcedfg’) from dual;
+gfdecba
+字符串连接函数：concat
+
+Java代码
+语法: concat(string A, string B…)
+返回值: string
+说明：返回输入字符串连接后的结果，支持任意个输入字符串
+举例：
+hive> select concat(‘abc’,'def’,'gh’) from dual;
+abcdefgh
+带分隔符字符串连接函数：concat_ws
+
+
+
+Java代码
+语法: concat_ws(string SEP, string A, string B…)
+返回值: string
+说明：返回输入字符串连接后的结果，SEP表示各个字符串间的分隔符
+举例：
+hive> select concat_ws(‘,’,'abc’,'def’,'gh’) from dual;
+abc,def,gh
+
+字符串截取函数：substr,substring
+
+
+
+Java代码
+语法: substr(string A, int start),substring(string A, int start)
+返回值: string
+说明：返回字符串A从start位置到结尾的字符串
+举例：
+hive> select substr(‘abcde’,3) from dual;
+cde
+hive> select substring(‘abcde’,3) from dual;
+cde
+hive> select substr(‘abcde’,-1) from dual; （和ORACLE相同）
+e
+
+
+
+字符串截取函数：substr,substring
+
+
+
+Java代码
+语法: substr(string A, int start, int len),substring(string A, int start, int len)
+返回值: string
+说明：返回字符串A从start位置开始，长度为len的字符串
+举例：
+hive> select substr(‘abcde’,3,2) from dual;
+cd
+hive> select substring(‘abcde’,3,2) from dual;
+cd
+hive>select substring(‘abcde’,-2,2) from dual;
+de
+
+字符串转大写函数：upper,ucase
+
+
+
+Java代码
+语法: upper(string A) ucase(string A)
+返回值: string
+说明：返回字符串A的大写格式
+举例：
+hive> select upper(‘abSEd’) from dual;
+ABSED
+hive> select ucase(‘abSEd’) from dual;
+ABSED
+
+字符串转小写函数：lower,lcase
+
+
+
+Java代码
+语法: lower(string A) lcase(string A)
+返回值: string
+说明：返回字符串A的小写格式
+举例：
+hive> select lower(‘abSEd’) from dual;
+absed
+hive> select lcase(‘abSEd’) from dual;
+absed
+
+去空格函数：trim
+
+
+
+Java代码
+语法: trim(string A)
+返回值: string
+说明：去除字符串两边的空格
+举例：
+hive> select trim(‘ abc ‘) from dual;
+abc
+
+左边去空格函数：ltrim
+
+
+
+Java代码
+语法: ltrim(string A)
+返回值: string
+说明：去除字符串左边的空格
+举例：
+hive> select ltrim(‘ abc ‘) from dual;
+abc
+
+右边去空格函数：rtrim
+
+
+
+Java代码
+语法: rtrim(string A)
+返回值: string
+说明：去除字符串右边的空格
+举例：
+hive> select rtrim(‘ abc ‘) from dual;
+abc
+
+
+
+正则表达式解析函数：regexp_extract
+
+其中的index，是按照正则字符串（）的位置
+
+
+
+Java代码
+语法: regexp_extract(string subject, string pattern, int index)
+返回值: string
+说明：将字符串subject按照pattern正则表达式的规则拆分，返回index指定的字符。注意，在有些情况下要使用转义字符
+举例：
+hive> select regexp_extract(‘foothebar’, ‘foo(.*?)(bar)’, 1) from dual;
+the
+hive> select regexp_extract(‘foothebar’, ‘foo(.*?)(bar)’, 2) from dual;
+bar
+hive> select regexp_extract(‘foothebar’, ‘foo(.*?)(bar)’, 0) from dual;
+foothebar
+
+
+
+函数parse_url,解析URL字符串
+
+
+
+Java代码
+parse_url(url, partToExtract[, key]) - extracts a part from a URL
+解析URL字符串，partToExtract的选项包含[HOST,PATH,QUERY,REF,PROTOCOL,FILE,AUTHORITY,USERINFO]。
+
+举例：
+* parse_url('http://facebook.com/path/p1.php?query=1', 'HOST')返回'facebook.com'
+* parse_url('http://facebook.com/path/p1.php?query=1', 'PATH')返回'/path/p1.php'
+* parse_url('http://facebook.com/path/p1.php?query=1', 'QUERY')返回'query=1'，
+可以指定key来返回特定参数，例如
+* parse_url('http://facebook.com/path/p1.php?query=1', 'QUERY','query')返回'1'，
+
+* parse_url('http://facebook.com/path/p1.php?query=1#Ref', 'REF')返回'Ref'
+* parse_url('http://facebook.com/path/p1.php?query=1#Ref', 'PROTOCOL')返回'http'
+
+json解析函数：get_json_object
+
+语法: get_json_object(string json_string, string path)
+
+
+Java代码
+返回值: string
+说明：解析json的字符串json_string,返回path指定的内容。如果输入的json字符串无效，那么返回NULL。
+举例：
+hive> select get_json_object(‘{“store”:
+> {“fruit”:\[{"weight":8,"type":"apple"},{"weight":9,"type":"pear"}],
+> “bicycle”:{“price”:19.95,”color”:”red”}
+> },
+> “email”:”amy@only_for_json_udf_test.net”,
+> “owner”:”amy”
+> }
+> ‘,’$.owner’) from dual;
+amy
+使用实例：
+
+
+
+Java代码
+select get_json_object('{"store":{"fruit":\["aa","bb","cc"]},"owner":"amy"}','$.store.fruit[0]') from test_msg limit 1;
+
+
+
+空格字符串函数：space
+
+语法: space(int n)
+
+Java代码
+返回值: string
+说明：返回长度为n的字符串
+举例：
+hive> select space(10) from dual;
+hive> select length(space(10)) from dual;
+10
+
+
+
+重复字符串函数：repeat
+
+语法: repeat(string str, int n)
+
+Java代码
+返回值: string
+说明：返回重复n次后的str字符串
+举例：
+hive> select repeat(‘abc’,5) from dual;
+abcabcabcabcabc
+
+
+
+首字符ascii函数：ascii
+
+语法: ascii(string str)
+
+Java代码
+返回值: int
+说明：返回字符串str第一个字符的ascii码
+举例：
+hive> select ascii(‘abcde’) from dual;
+97
+
+
+
+左补足函数：lpad
+
+语法: lpad(string str, int len, string pad)
+
+Java代码
+返回值: string
+说明：将str进行用pad进行左补足到len位
+举例：
+hive> select lpad(‘abc’,10,’td’) from dual;
+tdtdtdtabc
+
+
+
+与GP，Oracle不同，pad 不能默认
+
+右补足函数：rpad
+
+语法: rpad(string str, int len, string pad)
+
+Java代码
+返回值: string
+说明：将str进行用pad进行右补足到len位
+举例：
+hive> select rpad(‘abc’,10,’td’) from dual;
+abctdtdtdt
+
+
+
+分割字符串函数: split
+
+语法: split(string str, string pat)
+
+Java代码
+返回值: array
+说明: 按照pat字符串分割str，会返回分割后的字符串数组
+举例：
+hive> select split(‘abtcdtef’,'t’) from dual;
+["ab","cd","ef"]
+
+
+
+集合查找函数: find_in_set
+
+语法: find_in_set(string str, string strList)
+
+Java代码
+返回值: int
+说明: 返回str在strlist第一次出现的位置，strlist是用逗号分割的字符串。如果没有找该str字符，则返回0
+举例：
+hive> select find_in_set(‘ab’,'ef,ab,de’) from dual;
+2
+hive> select find_in_set(‘at’,'ef,ab,de’) from dual;
+0
+
+
+
+
+
+
+
+
+
+12.条件判断
+
+
+CONDITIONAL FUNCTIONS IN HIVE
+Hive supports three types of conditional functions. These functions are listed below:
+
+
+
+IF( Test Condition, True Value, False Value )
+The IF condition evaluates the “Test Condition” and if the “Test Condition” is true, then it returns the “True Value”. Otherwise, it returns the False Value.
+Example: IF(1=1, 'working', 'not working') 
+returns 'working'
+
+
+
+COALESCE( value1,value2,... )
+The COALESCE function returns the fist not NULL value from the list of values. If all the values in the list are NULL, then it returns NULL.
+Example: COALESCE(NULL,NULL,5,NULL,4) 
+returns 5
+
+
+
+CASE Statement
+The syntax for the case statement is:
+CASE [ expression ]
+WHEN condition1 THEN result1
+WHEN condition2 THEN result2
+...
+WHEN conditionn THEN resultn
+ELSE result
+END
+Here expression is optional. It is the value that you are comparing to the list of conditions. (ie: condition1, condition2, ... conditionn).
+
+
+Example:
+CASE Fruit
+WHEN 'APPLE' THEN 'The owner is APPLE'
+WHEN 'ORANGE' THEN 'The owner is ORANGE'
+ELSE 'It is another Fruit'
+END
+The other form of CASE is
+
+
+
+CASE
+WHEN Fruit = 'APPLE' THEN 'The owner is APPLE'
+WHEN Fruit = 'ORANGE' THEN 'The owner is ORANGE'
+ELSE 'It is another Fruit'
+END
+
+
+
+13.建一张一摸一样的新表
+一：仅复制表结构到新建表
+说明：example_new为新创建表，example_old为旧表，操作完成后仅把旧表结构复制到新建表
+create table example_new like example_old;
+
+
+二：复制结构与数据到新建表
+说明：创建一名为“example_new”新表，数据源与表结构来自于旧表example_old
+create table example_new select * from example_old;
+
+
+
+14.删除数据，删除分区，删除库表
+-- 删除库
+drop database if exists db_name;
+-- 强制删除库
+drop database if exists db_name cascade;
+
+-- 删除表
+drop table if exists employee;
+
+-- 清空表
+truncate table employee;
+-- 清空表，第二种方式
+insert overwrite table employee select * from employee where 1=0;
+
+-- 删除分区
+alter table employee_table drop partition (stat_year_month>='2018-01');
+
+-- 按条件删除数据
+insert overwrite table employee_table select * from employee_table where id>'180203a15f';
