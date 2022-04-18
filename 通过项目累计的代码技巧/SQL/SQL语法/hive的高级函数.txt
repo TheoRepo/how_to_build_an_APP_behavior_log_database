@@ -603,3 +603,8 @@ alter table employee_table drop partition (stat_year_month>='2018-01');
 
 -- 按条件删除数据
 insert overwrite table employee_table select * from employee_table where id>'180203a15f';
+
+
+15.hive查看函数(udf)定义及示例
+desc function split;
+desc function extended split;
